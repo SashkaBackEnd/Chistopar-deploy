@@ -1,0 +1,56 @@
+version: '3'
+
+services:
+
+  web:
+    build: ./ChistoPar-Back
+    environment:
+      - APACHE_RUN_USER=#1000
+    volumes:
+      - ${APP_PATH_HOST}:${APP_PATH_CONTAINER}
+    ports:
+      - 8080:80
+    working_dir: ${APP_PATH_CONTAINER}
+
+  front:
+    build: ./Chistopar-App
+    volumes:
+      - ${FRONT_PATH_HOST}:${FRONT_PATH_CONTAINER}
+    ports:
+      - 3000:3000
+    working_dir: ${FRONT_PATH_CONTAINER}
+
+  certbot: 
+    image: certbot/certbot
+    depends_on:
+      - web
+    container_name: certbot
+    volumes:
+      - etc-letsencrypt:/etc/letsencrypt
+      - www-html:/var/www/html
+    command: certonly --webroot --webroot-path=/var/www/html --email nfs2025@mail.ru --agree-tos --no-eff-email -d app-chistopar.dev-2-tech.ru
+
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: 1234567
+    volumes:
+      - ${DB_PATH_HOST}:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 6080:8080
+  
+  composer: 
+    image: composer:2.1
+    volumes:
+      - ${APP_PATH_HOST}:${APP_PATH_CONTAINER}
+    working_dir: ${APP_PATH_CONTAINER}
+    command: composer install
+
+volumes:
+  www-html:
+  etc-letsencrypt:

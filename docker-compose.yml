@@ -1,0 +1,87 @@
+version: '3'
+
+services:
+
+  web:
+    build: ../ChistoPar-Back
+    environment:
+      - APACHE_RUN_USER=#1000
+    volumes:
+      - ${APP_PATH_HOST}:${APP_PATH_CONTAINER}
+      - ./php-ini:/usr/local/etc/php/custom.d
+    ports:
+      - 8000:80
+##      - 80
+    working_dir: ${APP_PATH_CONTAINER}
+    labels:
+      - "traefik.http.routers.${PROJ_NAME}back.rule=Host(`${DOMAIN_BACK}`)"
+      - "traefik.http.routers.${PROJ_NAME}back.entrypoints=web"
+      - "traefik.http.routers.${PROJ_NAME}backhttps.rule=Host(`${DOMAIN_BACK}`)"
+      - "traefik.http.routers.${PROJ_NAME}backhttps.entrypoints=websecure"
+      - "traefik.http.routers.${PROJ_NAME}backhttps.tls.certresolver=myresolver"
+    environment:
+      PHP_INI_SCAN_DIR: "/usr/local/etc/php/custom.d:/usr/local/etc/php/conf.d"
+
+      
+  # front:
+  #   build: ./Chistopar-App
+  #   volumes:
+  #     - ${FRONT_PATH_HOST}:${FRONT_PATH_CONTAINER}
+  #   ports:
+  #     - 3000:3000
+  #   working_dir: ${FRONT_PATH_CONTAINER}
+  #   labels:
+  #     - "traefik.http.routers.${PROJ_NAME}.rule=Host(`${DOMAIN}`)"
+  #     - "traefik.http.routers.${PROJ_NAME}.entrypoints=web"
+  #     - "traefik.http.routers.${PROJ_NAME}https.rule=Host(`${DOMAIN}`)"
+  #     - "traefik.http.routers.${PROJ_NAME}https.entrypoints=websecure"
+  #     - "traefik.http.routers.${PROJ_NAME}https.tls.certresolver=myresolver"
+
+#  certbot: 
+#    image: certbot/certbot
+#    depends_on:
+#      - web
+#    container_name: certbot
+#    volumes:
+#      - etc-letsencrypt:/etc/letsencrypt
+#      - www-html:/var/www/html
+#    command: certonly --webroot --webroot-path=/var/www/html --email nfs2025@mail.ru --agree-tos --no-eff-email -d app-chistopar.dev-2-tech.ru
+
+  db:
+    # build: ./db
+    image: postgres
+    restart: "no"
+    restart: on-failure
+    restart: unless-stopped
+    restart: always
+    tty: true
+    environment:
+      POSTGRES_PASSWORD: 1234567
+    volumes:
+      - ${DB_PATH_HOST}:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 6080:8080
+    labels:
+      - "traefik.http.routers.adminer.rule=Host(`${DOMAIN}`) && PathPrefix(`/adminer`)"
+      - "traefik.http.routers.adminer.service=adminer-www@docker"
+      - "traefik.http.routers.adminer.entrypoints=websecure"
+      - "traefik.http.routers.adminer.tls.certresolver=myresolver"
+      - "traefik.http.routers.adminer.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=addmin:$$apr1$$uLXXKH0V$$pAAmYq/qCW7xq50XYb.Dj0"
+
+  composer: 
+    image: composer:2.1
+    volumes:    
+      - ./ChistoPar-Back:/var/www/html
+    working_dir: /var/www/html
+    command: composer install
+
+
+
+volumes:
+  www-html:
+#  etc-letsencrypt:
